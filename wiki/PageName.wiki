@@ -76,17 +76,22 @@ We can also compare elements from a collection
 
 In the case of a simple collection (collection of primitive or String or Class)
 
-{{{Equaliz.with (Car.class). GetModelNames ();}}}
+{{{
+Equaliz.with (Car.class). GetModelNames ();
+}}}
 
  
 In the case of a collection of pojo 
 
-{{{Equaliz.withElementOf (Equaliz.with (Car.class). GetModel ()). GetName ();}}}
+{{{
+Equaliz.withElementOf (Equaliz.with (Car.class). GetModel ()). GetName ();
+}}}
 
  
 In this case, restrictions are :
 
 - We can not use collection collection.
+
 - Must have completed a collection of simple generic definitions (Collection <? Extends String> will not work)
 
  
