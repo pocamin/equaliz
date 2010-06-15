@@ -1,4 +1,4 @@
-#summary Equaliz Simple DSL for create Equals, hashcode and clone method
+#summary Equaliz Simple DSL for create equals, hashcode and clone methods
 
 
 Equalize the class was created in the same philosophy as the class Mockito. Create a specific language for a daunting but critical task.
