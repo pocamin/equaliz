@@ -1,0 +1,52 @@
+#summary Equaliz Simple DSL for create Equals, hashcode and clone method
+
+
+Equalize the class was created in the same philosophy as the class Mockito. Create a specific language for a daunting but critical task.
+ 
+
+Equalize easily create methods equals, hashcode and clone with the same definition of equality.
+
+= Create the methods =
+
+ 
+
+To use Equaliz lets define simple hashCode() clone() et hashmap()
+
+ 
+==clone==
+
+@Override
+protected Object clone() {
+    return Equaliz.clone(this);
+}
+
+ 
+==hashCode==
+ 
+
+@Override
+public int hashCode() {
+   return Equaliz.hashCode(this);
+}
+
+ 
+==Equals==
+
+@Override
+public boolean equals(Object obj) {
+   return Equaliz.equals(this, obj);
+}    
+
+   
+
+
+
+
+
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
