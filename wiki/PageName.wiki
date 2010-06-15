@@ -108,7 +108,7 @@ In this case, restrictions are :
 - We can not Equaliz final method.
 
 - There is no question of using Equalize when performance counts. The ad hoc methods are several times faster than Equaliz. The processing time is still very low
- 
-- Equalize generates classes on the fly. We must be vigilant on the PermGen space.
+
+- Equalize generates classes on the fly. We must be vigilant on the PermGen Space.
 
    
