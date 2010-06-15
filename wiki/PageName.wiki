@@ -14,11 +14,12 @@ To use Equaliz lets define simple hashCode() clone() et hashmap()
 
  
 ==clone==
-
+{{{
 @Override
 protected Object clone() {
     return Equaliz.clone(this);
 }
+}}}
 
  
 ==hashCode==
@@ -38,5 +39,3 @@ public boolean equals(Object obj) {
 }`    
 
    
-
-
