@@ -24,18 +24,19 @@ protected Object clone() {
  
 ==hashCode==
  
-
+{{{
 @Override
 public int hashCode() {
    return Equaliz.hashCode(this);
 }
-
+}}}
  
 ==Equals==
 
-`@Override
+{{{
+@Override
 public boolean equals(Object obj) {
    return Equaliz.equals(this, obj);
-}`    
-
+}    
+}}}
    
