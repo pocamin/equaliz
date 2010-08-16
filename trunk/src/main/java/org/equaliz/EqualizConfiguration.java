@@ -6,20 +6,22 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import javassist.ClassClassPath;
+import javassist.ClassPool;
+import javassist.CtClass;
+import javassist.CtNewMethod;
 import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
-import org.apache.commons.beanutils.BeanUtils;
-import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.collections.map.IdentityMap;
 
 @SuppressWarnings("unchecked")
 public class EqualizConfiguration<T> {
+	private static int classNumber = 0;
 
 	private static Set<Class<?>> simpleClass = new HashSet<Class<?>>();
 	static {
@@ -168,72 +170,6 @@ public class EqualizConfiguration<T> {
 	}
 
 	/**
-	 * @param p1
-	 * @param p2
-	 * @return
-	 */
-	public boolean equals(Object p1, Object p2) {
-		for (String property : checkedProperties) {
-			try {
-				Object value1 = PropertyUtils.getProperty(p1, property);
-				Object value2 = PropertyUtils.getProperty(p2, property);
-				if (value1 == null && value2 == null) {
-					continue;
-				} else if (value1 == null || value2 == null) {
-					return false;
-				} else if (isSimpleClass(value1.getClass())) {
-					if (!value1.equals(value2)) {
-						return false;
-					}
-				} else if (isCollection(value1.getClass())) {
-					if (!improvedCollectionEquals(property, (Collection<?>) value1, (Collection<?>) value2)) {
-						return false;
-					}
-				} else {
-					return getInner(value1.getClass()).equals(value1, value2);
-				}
-
-			}
-			catch (Exception e) {
-				throw new EqualizException(EqualizException.INVALID_PROPERTY, property);
-			}
-
-		}
-		return true;
-	}
-
-	/**
-	 * @param property
-	 * @param value1
-	 * @param value2
-	 */
-	private boolean improvedCollectionEquals(String property, Collection c1, Collection c2) {
-		if (c1.size() != c2.size()) {
-			return false;
-		}
-
-		if (c1.size() > 0) {
-			// get the first object
-			Object firstObject = c1.iterator().next();
-			if (isSimpleClass(firstObject.getClass())) {
-				if (!new ArrayList(c1).equals(new ArrayList(c2))) {
-					return false;
-				}
-			} else {
-				EqualizConfiguration ec = innerConfigurator.get(firstObject.getClass());
-				Iterator ic1 = c1.iterator();
-				Iterator ic2 = c2.iterator();
-				while (ic1.hasNext()) {
-					if (!ec.equals(ic1.next(), ic2.next())) {
-						return false;
-					}
-				}
-			}
-		}
-		return true;
-	}
-
-	/**
 	 * @param class1
 	 * @return
 	 */
@@ -247,104 +183,6 @@ public class EqualizConfiguration<T> {
 		return simpleClass.contains(class1);
 	}
 
-	/**
-	 * @param p1
-	 * @return
-	 */
-	public int hashCode(Object p1) {
-		int code = 0;
-		for (String property : checkedProperties) {
-			try {
-				Object p = PropertyUtils.getProperty(p1, property);
-				if (p != null) {
-					if (isSimpleClass(p.getClass())) {
-						code += p.hashCode();
-					} else if (isCollection(p.getClass())) {
-						code += getHashCodeForCollection((Collection<?>) p);
-					} else {
-						code += getInner(p.getClass()).hashCode(p);
-					}
-				}
-			}
-			catch (Exception e) {
-				throw new EqualizException(EqualizException.INVALID_PROPERTY, property);
-			}
-		}
-
-		return code;
-	}
-
-	public <U> U clone(U o) {
-		if (o.equals(null)) {
-			return null;
-		}
-
-		U clonedObject;
-		try {
-			clonedObject = (U) o.getClass().newInstance();
-		}
-		catch (Exception e) {
-			throw new EqualizException(EqualizException.INVALID_BEAN, o.getClass().toString());
-		}
-
-		for (String property : checkedProperties) {
-			try {
-				Object p = PropertyUtils.getProperty(o, property);
-				if (p != null) {
-					if (isSimpleClass(p.getClass())) {
-						BeanUtils.setProperty(clonedObject, property, p);
-					} else if (isCollection(p.getClass())) {
-						BeanUtils.setProperty(clonedObject, property, cloneCollection((Collection<?>) p));
-					} else {
-						BeanUtils.setProperty(clonedObject, property, getInner(p.getClass()).clone(p));
-					}
-				}
-			}
-			catch (Exception e) {
-				throw new EqualizException(EqualizException.INVALID_PROPERTY, property);
-			}
-		}
-
-		return clonedObject;
-	}
-
-	/**
-	 * @param p
-	 * @throws IllegalAccessException
-	 * @throws InstantiationException
-	 */
-	private Collection cloneCollection(Collection<?> fromCollection) throws InstantiationException, IllegalAccessException {
-		Collection clonedCollection = fromCollection.getClass().newInstance();
-		for (Object o : fromCollection) {
-			if (o == null) {
-				clonedCollection.add(null);
-			} else if (isSimpleClass(o.getClass())) {
-				clonedCollection.add(o);
-			} else {
-				clonedCollection.add(getInner(o.getClass()).clone(o));
-			}
-
-		}
-		return clonedCollection;
-	}
-
-	/**
-	 * @param p
-	 * @throws IllegalAccessException
-	 * @throws InstantiationException
-	 */
-	private int getHashCodeForCollection(Collection<?> fromCollection) {
-		int hashCode = 0;
-		for (Object o : fromCollection) {
-			if (isSimpleClass(o.getClass())) {
-				hashCode += o.hashCode();
-			} else {
-				hashCode += getInner(o.getClass()).hashCode(o);
-			}
-		}
-		return hashCode;
-	}
-
 	private boolean isCollection(Class<?> returnType) {
 		return Collection.class.isAssignableFrom(returnType);
 	}
@@ -356,5 +194,191 @@ public class EqualizConfiguration<T> {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * @return
+	 */
+	public synchronized Equalizer createEqualizer() {
+		ClassPool pool = ClassPool.getDefault();
+		pool.insertClassPath(new ClassClassPath(classe));
+		CtClass evalClass = pool.makeClass(classe.getCanonicalName() + "_eq1_" + classNumber++);
+		try {
+			evalClass.addMethod(CtNewMethod.make(createEqualsMethod(), evalClass));
+			evalClass.addMethod(CtNewMethod.make(createhashCodeMethod(), evalClass));
+			evalClass.addInterface(pool.get(Equalizer.class.getCanonicalName()));
+
+			return (Equalizer) evalClass.toClass().newInstance();
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create equalizer", e);
+		}
+	}
+
+	public String createhashCodeMethod() throws SecurityException, NoSuchMethodException {
+		StringBuilder builder = new StringBuilder();
+		builder.append("public int hashCode(Object p1){");
+		builder.append("int hashCode = 0;");
+		builder.append(classe.getCanonicalName() + " p1d = (" + classe.getCanonicalName() + ")p1;");
+
+		createPropertiesHashCoder(builder, "p1d", this);
+		builder.append("return hashCode;");
+		builder.append("}");
+		return builder.toString();
+	}
+
+	/**
+	 * @param builder
+	 * @param string
+	 * @param equalizConfiguration
+	 * @throws NoSuchMethodException
+	 * @throws SecurityException
+	 */
+	private void createPropertiesHashCoder(StringBuilder builder, String current, EqualizConfiguration<T> currentConfig)
+			throws SecurityException, NoSuchMethodException {
+		int i = 0;
+		builder.append("if (" + current + " != null ){");
+		for (String property : currentConfig.checkedProperties) {
+
+			String next = current + "_" + i;
+			String getterMethod = "get" + property.substring(0, 1).toUpperCase() + property.substring(1);
+			Class subClasse = currentConfig.classe.getMethod(getterMethod).getReturnType();
+
+			builder.append(subClasse.getCanonicalName() + " " + next + " = " + current + "." + getterMethod + "();");
+			builder.append("if (" + next + " != null){");
+
+			if (isSimpleClass(subClasse)) {
+				builder.append("hashCode += " + next + ".hashCode();");
+			} else if (isCollection(subClasse)) {
+				createPropertiesHashCoderForCollection(builder, currentConfig, property, next);
+			} else {
+				createPropertiesHashCoder(builder, next, currentConfig.getInner(subClasse));
+			}
+
+			builder.append("}");
+
+			i++;
+		}
+		builder.append("} ");
+	}
+
+	/**
+	 * @param builder
+	 * @param currentConfig
+	 * @param property
+	 * @param next
+	 * @throws NoSuchMethodException
+	 * @throws SecurityException
+	 */
+	private void createPropertiesHashCoderForCollection(StringBuilder builder, EqualizConfiguration<T> currentConfig, String property,
+			String next) throws SecurityException, NoSuchMethodException {
+		Class collectionReturnType = innerImprovedCollectionsReturnType.get(innerImprovedCollections.get(property));
+		// Convert to array
+		String nextArray = next + "a";
+		builder.append(collectionReturnType.getCanonicalName() + "[] " + nextArray + " = new " + collectionReturnType.getCanonicalName() + "["
+				+ next + ".size()];");
+		builder.append(next + ".toArray(" + nextArray + ");");
+
+		// create hashcode
+		builder.append("for(int i = 0; i < " + nextArray + ".length; i++){");
+		String nextArrayContent = next + "ac";
+		builder.append(collectionReturnType.getCanonicalName() + " " + nextArrayContent + " = " + nextArray + "[i];");
+
+		if (isSimpleClass(collectionReturnType)) {
+			builder.append("hashCode += " + nextArrayContent + ".hashCode();");
+		} else {
+			createPropertiesHashCoder(builder, nextArrayContent, currentConfig.getInner(collectionReturnType));
+		}
+		builder.append("}");
+	}
+
+	public String createEqualsMethod() throws SecurityException, NoSuchMethodException {
+		StringBuilder builder = new StringBuilder();
+		builder.append("public boolean equals(Object p1, Object p2){");
+
+		builder.append(classe.getCanonicalName() + " p1d = (" + classe.getCanonicalName() + ")p1;");
+		builder.append(classe.getCanonicalName() + " p2d = (" + classe.getCanonicalName() + ")p2;");
+
+		createPropertiesComparator(builder, "p1d", "p2d", this);
+		builder.append("return true;");
+		builder.append("}");
+		return builder.toString();
+	}
+
+	/**
+	 * @param builder
+	 * @param currentLeft
+	 * @param currentRight
+	 * @param currentConfig
+	 * @throws NoSuchMethodException
+	 */
+	private void createPropertiesComparator(StringBuilder builder, String currentLeft, String currentRight, EqualizConfiguration currentConfig)
+			throws NoSuchMethodException {
+
+		int i = 0;
+		builder.append("if (!(" + currentLeft + " == null && " + currentRight + " == null)){");
+		for (String property : (Collection<String>) currentConfig.checkedProperties) {
+
+			String nextLeft = currentLeft + "_" + i;
+			String nextRight = currentRight + "_" + i;
+			String getterMethod = "get" + property.substring(0, 1).toUpperCase() + property.substring(1);
+			Class subClasse = currentConfig.classe.getMethod(getterMethod).getReturnType();
+
+			builder.append(subClasse.getCanonicalName() + " " + nextLeft + " = " + currentLeft + "." + getterMethod + "();");
+			builder.append(subClasse.getCanonicalName() + " " + nextRight + " = " + currentRight + "." + getterMethod + "();");
+			builder.append("if ((" + nextLeft + " == null && " + nextRight + " != null) || (" + nextLeft + " != null && " + nextRight
+					+ " == null)) return false;");
+			if (isSimpleClass(subClasse)) {
+				builder.append("if (!" + nextLeft + ".equals(" + nextRight + ")) return false;");
+			} else if (isCollection(subClasse)) {
+				createPropertiesComparatorForCollection(builder, currentConfig, property, nextLeft, nextRight);
+			} else {
+				createPropertiesComparator(builder, nextLeft, nextRight, currentConfig.getInner(subClasse));
+			}
+
+			i++;
+		}
+		builder.append("} else {");
+		builder.append("if (" + currentLeft + " == null || " + currentRight + " == null) return false;");
+		builder.append("}");
+	}
+
+	/**
+	 * @param builder
+	 * @param currentConfig
+	 * @param property
+	 * @param nextLeft
+	 * @param nextRight
+	 * @throws NoSuchMethodException
+	 */
+	private void createPropertiesComparatorForCollection(StringBuilder builder, EqualizConfiguration currentConfig, String property,
+			String nextLeft, String nextRight) throws NoSuchMethodException {
+		Class collectionReturnType = innerImprovedCollectionsReturnType.get(innerImprovedCollections.get(property));
+		builder.append("if (" + nextLeft + ".size() !=" + nextRight + ".size()) return false;");
+
+		// Convert to array
+		String nextLeftArray = nextLeft + "a";
+		String nextRightArray = nextRight + "b";
+		builder.append(collectionReturnType.getCanonicalName() + "[] " + nextLeftArray + " = new " + collectionReturnType.getCanonicalName()
+				+ "[" + nextLeft + ".size()];");
+		builder.append(collectionReturnType.getCanonicalName() + "[] " + nextRightArray + " = new " + collectionReturnType.getCanonicalName()
+				+ "[" + nextRight + ".size()];");
+		builder.append(nextRight + ".toArray(" + nextRightArray + ");");
+		builder.append(nextLeft + ".toArray(" + nextLeftArray + ");");
+
+		// compare arrays element
+		builder.append("for(int i = 0; i < " + nextLeftArray + ".length; i++){");
+		String nextLeftArrayContent = nextLeft + "ac";
+		String nextRightArrayContent = nextRight + "bc";
+		builder.append(collectionReturnType.getCanonicalName() + " " + nextLeftArrayContent + " = " + nextLeftArray + "[i];");
+		builder.append(collectionReturnType.getCanonicalName() + " " + nextRightArrayContent + " = " + nextRightArray + "[i];");
+
+		if (isSimpleClass(collectionReturnType)) {
+			builder.append("if (!" + nextLeftArrayContent + ".equals(" + nextRightArrayContent + ")) return false;");
+		} else {
+			createPropertiesComparator(builder, nextLeftArrayContent, nextRightArrayContent, currentConfig.getInner(collectionReturnType));
+		}
+
+		builder.append("}");
 	}
 }
