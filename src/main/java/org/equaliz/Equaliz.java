@@ -13,23 +13,23 @@ import java.util.Map;
  * @author benjamin Leroux
  */
 public class Equaliz {
-	public static Map<Class<?>, EqualizConfiguration<?>> savedConfigurator = new HashMap<Class<?>, EqualizConfiguration<?>>();
 
-	/**
-	 * Remove all Equaliz configuration
-	 */
-	protected static void clearEqualizConfig() {
-		savedConfigurator.clear();
-	}
+	public static ThreadLocal<Map<Class<?>, EqualizConfiguration<?>>> savedConfigurators =
+			new ThreadLocal<Map<Class<?>, EqualizConfiguration<?>>>();
 
 	@SuppressWarnings("unchecked")
-	public static <T> EqualizConfiguration<T> get(Class<T> classe) {
-		if (savedConfigurator.containsKey(classe)) {
-			return (EqualizConfiguration<T>) savedConfigurator.get(classe);
+	private static <T> EqualizConfiguration<T> get(Class<T> classe) {
+
+		if (savedConfigurators.get() == null) {
+			savedConfigurators.set(new HashMap<Class<?>, EqualizConfiguration<?>>());
+		}
+
+		if (savedConfigurators.get().containsKey(classe)) {
+			return (EqualizConfiguration<T>) savedConfigurators.get().get(classe);
 		}
 
 		EqualizConfiguration<T> eq = new EqualizConfiguration<T>(classe);
-		savedConfigurator.put(classe, eq);
+		savedConfigurators.get().put(classe, eq);
 		return eq;
 
 	}
@@ -39,31 +39,26 @@ public class Equaliz {
 	}
 
 	/**
-	 * @param p1
-	 * @param p2
-	 * @return
-	 */
-	public static boolean equals(Object p1, Object p2) {
-		return get(p1.getClass()).equals(p1, p2);
-	}
-
-	/**
-	 * @param p1
-	 */
-	public static int hashCode(Object p1) {
-		return get(p1.getClass()).hashCode(p1);
-	}
-
-	public static <T> T clone(T o) {
-		return get(o.getClass()).clone(o);
-	}
-
-	/**
 	 * @param c
 	 */
 	public static <T> T withElementOf(Collection<T> c) {
 		ImprovedCollection<T> improvedCollection = (ImprovedCollection<T>) c;
 		return improvedCollection.with();
+	}
+
+	public static <T> Equalizer createEqualizer(Class<T> classe) {
+		if (savedConfigurators.get() == null) {
+			throw new IllegalAccessError("Should not create equalizer before definiting it");
+		}
+
+		EqualizConfiguration<?> conf = savedConfigurators.get().get(classe);
+		if (conf == null) {
+			throw new IllegalAccessError("Should not create equalizer before definiting it");
+		}
+
+		savedConfigurators.get().remove(classe);
+
+		return conf.createEqualizer();
 	}
 
 }
